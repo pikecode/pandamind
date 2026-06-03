@@ -39,7 +39,7 @@ SEED_MODELS = [
         "enabled": True,
     },
     {
-        "id": "ollama-deepseek-r1-14b",
+        "id": "ds-r1-14b",
         "name": "Local DeepSeek R1 14B (Ollama)",
         "provider": "ollama",
         "model": "deepseek-r1:14b",

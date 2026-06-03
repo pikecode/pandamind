@@ -66,13 +66,16 @@
 PYTHONPATH=src uv run python -m pandamind.db.seed
 ```
 
-| 模型 | alias | 用途 |
-|------|-------|------|
-| `qwen3:8b` | `qwen`, `daily` | 日常对话、代码、翻译，综合能力最强 |
-| `deepseek-r1:14b` | `reasoning`, `algorithm` | 算法推理专用，链式思考能力突出 |
+| 模型 ID | 名称 | alias | 用途 |
+|---------|------|-------|------|
+| `ollama-qwen3-8b` | Local Qwen3 8B | `qwen`, `daily` | 日常对话、代码、翻译，综合能力最强 |
+| `ds-r1-14b` | Local DeepSeek R1 14B | `reasoning`, `algorithm` | 算法推理专用，链式思考能力突出 |
+
+**注意**：数据库 `models.id` 字段限制 21 字符，seed 使用短 ID（`ds-r1-14b` 而非 `ollama-deepseek-r1-14b`）。
 
 **使用前需先下载模型**：
 ```bash
+ollama pull llama3:8b   # 已有示例模型
 ollama pull qwen3:8b
 ollama pull deepseek-r1:14b
 ```
