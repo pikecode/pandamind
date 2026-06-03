@@ -250,6 +250,9 @@ export function ChatPage() {
               }`}
             >
               <pre className="whitespace-pre-wrap text-sm">{msg.content}</pre>
+              {streaming && msg.role === 'assistant' && msg.content === '' && (
+                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-zinc-400" />
+              )}
             </div>
           ))
         )}

@@ -77,6 +77,20 @@ def verify_plaintext(stored_hash: str, plaintext: str) -> bool:
 
 async def authenticate_api_key(session: AsyncSession, plaintext: str) -> ApiIdentity | None:
     """Return API identity when the key is valid and active."""
+    # Check pre-configured API keys first (from env vars)
+    from pandamind.core.config import get_settings
+
+    settings = get_settings()
+    pre_configured = settings.pre_configured_api_keys
+    if plaintext in pre_configured:
+        return ApiIdentity(
+            client_id="pre-configured",
+            api_key_id="pre-configured",
+            scopes=frozenset(pre_configured[plaintext]),
+            allowed_model_ids=frozenset(),
+            allowed_prompt_ids=frozenset(),
+        )
+
     public_id = parse_public_id(plaintext)
     if not public_id:
         return None

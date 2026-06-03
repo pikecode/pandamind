@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     auth_password: str = "changeme"
     jwt_secret: str = ""
 
+    # --- Pre-configured API Keys (comma-separated list of key=scope pairs) ---
+    # Format: "key1:scope1,scope2;key2:scope3"
+    # Example: "pmk_live_xxx:chat:invoke,process:invoke"
+    api_keys: str = ""
+
     @field_validator("database_url")
     @classmethod
     def _ensure_asyncpg_scheme(cls, v: str) -> str:
@@ -93,6 +98,24 @@ class Settings(BaseSettings):
     def effective_jwt_secret(self) -> str:
         """Return the JWT secret; falls back to encryption_key when unset."""
         return self.jwt_secret if self.jwt_secret else self.encryption_key
+
+    @property
+    def pre_configured_api_keys(self) -> dict[str, list[str]]:
+        """Parse API_KEYS env var into dict of key -> scopes."""
+        result: dict[str, list[str]] = {}
+        if not self.api_keys:
+            return result
+        for entry in self.api_keys.split(";"):
+            entry = entry.strip()
+            if not entry:
+                continue
+            if "=" in entry:
+                key, scopes_str = entry.split("=", 1)
+                scopes = [s.strip() for s in scopes_str.split(",") if s.strip()]
+                result[key.strip()] = scopes
+            else:
+                result[entry] = []
+        return result
 
 
 @lru_cache(maxsize=1)

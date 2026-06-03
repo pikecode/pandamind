@@ -27,7 +27,32 @@ from pandamind.services.usage import record_usage_event
 
 router = APIRouter(prefix="/v1/chat", tags=["chat"])
 
-# In-memory map: stream_id -> asyncio.Event for cancellation
+# In-memory cache: hash(model_id + messages_json) -> cached response
+_chat_cache: dict[str, tuple[str, float]] = {}
+_CACHE_TTL_SECONDS = 300  # 5 minutes
+
+
+def _cache_key(model_id: str, messages: list[dict[str, str]]) -> str:
+    """Generate cache key from model and messages."""
+    import hashlib
+    data = json.dumps({"model": model_id, "messages": messages}, sort_keys=True)
+    return hashlib.sha256(data.encode()).hexdigest()
+
+
+def _get_cached(key: str) -> str | None:
+    """Return cached response if not expired."""
+    if key in _chat_cache:
+        content, timestamp = _chat_cache[key]
+        if time.time() - timestamp < _CACHE_TTL_SECONDS:
+            return content
+        del _chat_cache[key]
+    return None
+
+
+def _set_cache(key: str, content: str) -> None:
+    """Store response in cache with TTL."""
+    _chat_cache[key] = (content, time.time())
+
 _stream_events: dict[str, asyncio.Event] = {}
 
 
@@ -66,6 +91,19 @@ async def chat_completions(
         )
 
     messages = [Message(role=m["role"], content=m["content"]) for m in messages_raw]
+
+    # Check cache for non-streaming requests
+    cache_key = _cache_key(model_id, messages_raw)
+    if not stream:
+        cached = _get_cached(cache_key)
+        if cached is not None:
+            return {
+                "id": generate_id(),
+                "object": "chat.completion",
+                "model": model_id,
+                "choices": [{"message": {"role": "assistant", "content": cached}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            }
 
     options = ChatOptions(
         temperature=body.get("temperature", 0.7),
@@ -136,6 +174,8 @@ async def chat_completions(
             latency_ms = round((time.perf_counter() - t0) * 1000)
             usage = _merge_usage(collected)
             full_text = "".join(c.content for c in collected)
+            # Cache the complete response
+            _set_cache(cache_key, full_text)
             await _save_conversation(stream_id, model_id, messages_raw, full_text, usage, latency_ms)
             if is_external:
                 async with AsyncSessionLocal() as usage_session:
