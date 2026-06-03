@@ -14,6 +14,7 @@ uv sync
 cp .env.example .env
 # Edit .env — set ENCRYPTION_KEY:
 python -c "import os, base64; print(base64.b64encode(os.urandom(32)).decode())"
+# For local-only smoke tests you may set AUTH_DISABLED=true.
 
 # 3. Start PostgreSQL (local or via docker-compose)
 docker compose -f ../../docker-compose.dev.yml up -d
@@ -31,10 +32,13 @@ Swagger docs: http://localhost:8000/docs
 
 ```bash
 cd ../..
-# Create .env with ENCRYPTION_KEY set
+# Create .env with ENCRYPTION_KEY, JWT_SECRET, AUTH_DISABLED=false,
+# and non-default AUTH_USERNAME / AUTH_PASSWORD.
 docker compose up -d
 # UI available at http://localhost:80
 ```
+
+Production **must** run with `AUTH_DISABLED=false` and strong credentials.
 
 ## Environment Variables
 
@@ -42,9 +46,9 @@ docker compose up -d
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | `postgresql://pandamind:pandamind@localhost:5432/pandamind` | PostgreSQL DSN |
 | `ENCRYPTION_KEY` | **Yes** | — | Base64-encoded 32-byte key for AES-256-GCM (API key encryption) |
-| `AUTH_DISABLED` | No | `true` | Set `false` to enable JWT login |
+| `AUTH_DISABLED` | No | `false` | Set `true` only for local development without auth |
 | `AUTH_USERNAME` | No | `admin` | Login username (when auth enabled) |
-| `AUTH_PASSWORD` | No | `changeme` | Login password (when auth enabled) |
+| `AUTH_PASSWORD` | No | `changeme` | Login password (change before production) |
 | `JWT_SECRET` | No | falls back to `ENCRYPTION_KEY` | HS256 secret for JWT signing |
 | `ALLOWED_ORIGINS` | No | `http://localhost:5173,http://localhost:8000` | CORS allowed origins (comma-separated) |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARNING`, or `ERROR` |

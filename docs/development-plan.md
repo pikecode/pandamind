@@ -186,11 +186,11 @@
 
 **目标**：生产可用，一键 Docker 部署
 
-### M5.1 认证系统（可选，按需启用）
-- [ ] JWT 认证依赖（`fastapi-users` 或自实现 `pyjwt`）
-- [ ] `POST /auth/login` — 获取 Token（单用户，密码配置在环境变量）
-- [ ] `AUTH_DISABLED=true` 时跳过认证
-- [ ] 前端登录页 + Token 存储
+### M5.1 认证系统（已提前实现基础版）
+- [x] JWT 认证依赖（自实现 `pyjwt`）
+- [x] `POST /v1/auth/login` — 获取 Token（单用户，密码配置在环境变量）
+- [x] `AUTH_DISABLED=true` 时跳过认证，仅允许本地开发使用
+- [x] 前端登录页 + Token 存储
 
 ### M5.2 生产 Docker 配置
 - [ ] `apps/server/Dockerfile`（多阶段：uv 装依赖 → 运行时精简镜像）
@@ -265,7 +265,7 @@ M5 完善部署         ░░░░░░░░░░░░░░░░██�
 
 以下能力推迟到 Phase 2 / Phase 3，首版不引入：
 
-- **多用户系统**：v1 单用户，`AUTH_DISABLED=true` 本地开发，M5 才加单用户 JWT
+- **多用户系统**：v1 单用户，`AUTH_DISABLED=true` 仅本地开发；基础单用户 JWT 已提前实现
 - **Anthropic / Qwen / Custom Provider**：M2b 按需推进，不阻塞 MVP
 - **Provider 故障转移 / 负载均衡**：Phase 3
 - **请求队列（Celery / RQ）**：Phase 3

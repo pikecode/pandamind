@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +15,29 @@ from pandamind.db.session import get_session
 from pandamind.services.api_keys import generate_api_key
 
 router = APIRouter(prefix="/v1/api-clients", tags=["admin-api-clients"])
+
+ALLOWED_CLIENT_STATUSES = {"active", "disabled"}
+ALLOWED_KEY_ENVIRONMENTS = {"live", "test"}
+ALLOWED_KEY_STATUSES = {"active", "disabled"}
+ALLOWED_SCOPES = {"chat:invoke", "process:invoke", "models:list", "prompts:list", "usage:read"}
+
+
+class ApiClientCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    owner_email: str | None = Field(default=None, max_length=255)
+    status: str = "active"
+
+
+class ApiKeyCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    environment: str = "live"
+    scopes: list[str] = Field(default_factory=list)
+    allowed_model_ids: list[str] = Field(default_factory=list)
+    allowed_prompt_ids: list[str] = Field(default_factory=list)
+    allowed_ips: list[str] = Field(default_factory=list)
+    allowed_origins: list[str] = Field(default_factory=list)
+    status: str = "active"
 
 
 def _serialize_client(client: ApiClient) -> dict[str, Any]:
@@ -58,16 +82,18 @@ async def list_clients(
 
 @router.post("", response_model=dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def create_client(
-    data: dict[str, Any],
+    data: ApiClientCreate,
     session: AsyncSession = Depends(get_session),
     _user: str = Depends(require_auth),
 ) -> dict[str, Any]:
+    if data.status not in ALLOWED_CLIENT_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid client status: {data.status}")
     client = ApiClient(
         id=generate_id(),
-        name=data["name"],
-        description=data.get("description"),
-        owner_email=data.get("owner_email"),
-        status=data.get("status", "active"),
+        name=data.name,
+        description=data.description,
+        owner_email=data.owner_email,
+        status=data.status,
     )
     session.add(client)
     await session.commit()
@@ -93,28 +119,36 @@ async def list_client_keys(
 @router.post("/{client_id}/keys", response_model=dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def create_client_key(
     client_id: str,
-    data: dict[str, Any],
+    data: ApiKeyCreate,
     session: AsyncSession = Depends(get_session),
     _user: str = Depends(require_auth),
 ) -> dict[str, Any]:
     _ = await _get_client_or_404(session, client_id)
-    environment = data.get("environment", "live")
+    if data.environment not in ALLOWED_KEY_ENVIRONMENTS:
+        raise HTTPException(status_code=400, detail=f"Invalid key environment: {data.environment}")
+    if data.status not in ALLOWED_KEY_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid key status: {data.status}")
+    unknown_scopes = sorted(set(data.scopes) - ALLOWED_SCOPES)
+    if unknown_scopes:
+        raise HTTPException(status_code=400, detail=f"Invalid scopes: {', '.join(unknown_scopes)}")
+
+    environment = data.environment
     generated = generate_api_key(environment=environment)
     api_key = ApiKey(
         id=generate_id(),
         client_id=client_id,
         public_id=generated.public_id,
-        name=data["name"],
+        name=data.name,
         key_prefix=generated.key_prefix,
         key_hash=generated.key_hash,
         key_last4=generated.key_last4,
         environment=environment,
-        scopes=data.get("scopes", []),
-        allowed_model_ids=data.get("allowed_model_ids", []),
-        allowed_prompt_ids=data.get("allowed_prompt_ids", []),
-        allowed_ips=data.get("allowed_ips", []),
-        allowed_origins=data.get("allowed_origins", []),
-        status=data.get("status", "active"),
+        scopes=data.scopes,
+        allowed_model_ids=data.allowed_model_ids,
+        allowed_prompt_ids=data.allowed_prompt_ids,
+        allowed_ips=data.allowed_ips,
+        allowed_origins=data.allowed_origins,
+        status=data.status,
     )
     session.add(api_key)
     await session.commit()

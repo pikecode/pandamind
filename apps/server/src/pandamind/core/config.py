@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost:5173,http://localhost:8000"
 
     # --- Auth ---
-    auth_disabled: bool = True
+    auth_disabled: bool = False
     auth_username: str = "admin"
     auth_password: str = "changeme"
     jwt_secret: str = ""

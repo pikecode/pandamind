@@ -90,7 +90,8 @@ ORM 模型位于：
 
 - Chat 与 Process 接口仍兼容管理员 JWT，保证 Web UI 与本地调试不被破坏。
 - `/v1/public/*` 明确要求外部 API Key，避免管理员 JWT 混入外部调用方视角。
-- 当本地 `.env` 中 `AUTH_DISABLED=true` 时，生产依赖会绕过鉴权；集成测试中已显式强制真实鉴权路径，避免测试被本地配置误导。
+- 默认 `AUTH_DISABLED=false`，生产环境需要真实鉴权。
+- 当本地显式设置 `AUTH_DISABLED=true` 时，认证会被绕过；集成测试中已显式强制真实鉴权路径，避免测试被本地配置误导。
 
 ---
 

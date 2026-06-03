@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +21,39 @@ router = APIRouter(prefix="/v1/models", tags=["models"])
 
 def _key_manager() -> KeyManager:
     return KeyManager(get_settings().encryption_key_bytes)
+
+
+ALLOWED_PROVIDERS = {"ollama", "openai-compatible"}
+
+
+class ModelCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    provider: str
+    model: str = Field(min_length=1, max_length=255)
+    base_url: str | None = None
+    api_key: str | None = None
+    default_params: dict[str, Any] = Field(default_factory=dict)
+    aliases: list[str] = Field(default_factory=list)
+    enabled: bool = True
+
+
+class ModelUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    provider: str | None = Field(default=None, min_length=1)
+    model: str | None = Field(default=None, min_length=1, max_length=255)
+    base_url: str | None = None
+    api_key: str | None = None
+    default_params: dict[str, Any] | None = None
+    aliases: list[str] | None = None
+    enabled: bool | None = None
+
+    @field_validator("name", "provider", "model", "default_params", "aliases", "enabled")
+    @classmethod
+    def _reject_null_for_required_fields(cls, v: Any) -> Any:
+        """When these fields are explicitly provided, they must not be null."""
+        if v is None:
+            raise ValueError("This field cannot be set to null; omit it to keep the current value")
+        return v
 
 
 def _serialize(model: ModelConfigORM, *, mask_key: bool = True) -> dict[str, Any]:
@@ -53,22 +87,24 @@ async def list_models(session: AsyncSession = Depends(get_session), _user: str =
 
 
 @router.post("", response_model=dict[str, Any], status_code=status.HTTP_201_CREATED)
-async def create_model(data: dict[str, Any], session: AsyncSession = Depends(get_session), _user: str = Depends(require_auth)) -> dict[str, Any]:
+async def create_model(data: ModelCreate, session: AsyncSession = Depends(get_session), _user: str = Depends(require_auth)) -> dict[str, Any]:
+    if data.provider not in ALLOWED_PROVIDERS:
+        raise HTTPException(status_code=400, detail=f"Invalid provider: {data.provider}. Allowed: {sorted(ALLOWED_PROVIDERS)}")
     km = _key_manager()
     api_key_enc = None
-    if data.get("api_key"):
-        api_key_enc = km.encrypt(data["api_key"])
+    if data.api_key:
+        api_key_enc = km.encrypt(data.api_key)
 
     model = ModelConfigORM(
         id=generate_id(),
-        name=data["name"],
-        provider=data["provider"],
-        model=data["model"],
-        base_url=data.get("base_url"),
+        name=data.name,
+        provider=data.provider,
+        model=data.model,
+        base_url=data.base_url,
         api_key_enc=api_key_enc,
-        default_params=data.get("default_params", {}),
-        aliases=data.get("aliases", []),
-        enabled=data.get("enabled", True),
+        default_params=data.default_params,
+        aliases=data.aliases,
+        enabled=data.enabled,
     )
     session.add(model)
     await session.commit()
@@ -89,29 +125,34 @@ async def get_model(model_id: str, session: AsyncSession = Depends(get_session),
 
 
 @router.put("/{model_id}", response_model=dict[str, Any])
-async def update_model(model_id: str, data: dict[str, Any], session: AsyncSession = Depends(get_session), _user: str = Depends(require_auth)) -> dict[str, Any]:
+async def update_model(model_id: str, data: ModelUpdate, session: AsyncSession = Depends(get_session), _user: str = Depends(require_auth)) -> dict[str, Any]:
     result = await session.execute(select(ModelConfigORM).where(ModelConfigORM.id == model_id))
     model = result.scalar_one_or_none()
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
 
+    if data.provider is not None and data.provider not in ALLOWED_PROVIDERS:
+        raise HTTPException(status_code=400, detail=f"Invalid provider: {data.provider}. Allowed: {sorted(ALLOWED_PROVIDERS)}")
+
     km = _key_manager()
-    if "name" in data:
-        model.name = data["name"]
-    if "provider" in data:
-        model.provider = data["provider"]
-    if "model" in data:
-        model.model = data["model"]
-    if "base_url" in data:
-        model.base_url = data["base_url"]
-    if "api_key" in data:
-        model.api_key_enc = km.encrypt(data["api_key"]) if data["api_key"] else None
-    if "default_params" in data:
-        model.default_params = data["default_params"]
-    if "aliases" in data:
-        model.aliases = data["aliases"]
-    if "enabled" in data:
-        model.enabled = data["enabled"]
+    updates = data.model_dump(exclude_unset=True)
+
+    if "name" in updates:
+        model.name = data.name
+    if "provider" in updates:
+        model.provider = data.provider
+    if "model" in updates:
+        model.model = data.model
+    if "base_url" in updates:
+        model.base_url = data.base_url
+    if "api_key" in updates:
+        model.api_key_enc = km.encrypt(data.api_key) if data.api_key else None
+    if "default_params" in updates:
+        model.default_params = data.default_params
+    if "aliases" in updates:
+        model.aliases = data.aliases
+    if "enabled" in updates:
+        model.enabled = data.enabled
 
     await session.commit()
     await session.refresh(model)

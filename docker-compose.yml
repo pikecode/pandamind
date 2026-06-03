@@ -24,8 +24,11 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://pandamind:pandamind@postgres:5432/pandamind
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      AUTH_DISABLED: "true"
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
+      AUTH_DISABLED: ${AUTH_DISABLED:-false}
+      AUTH_USERNAME: ${AUTH_USERNAME:-admin}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:?AUTH_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       HOST: "0.0.0.0"
       PORT: "8000"
       LOG_LEVEL: INFO

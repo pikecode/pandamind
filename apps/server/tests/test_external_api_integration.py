@@ -154,6 +154,37 @@ async def test_admin_can_create_client_and_api_key_once(client: httpx.AsyncClien
     assert "api_key" not in keys_res.json()[0]
 
 
+async def test_admin_client_and_key_requests_are_validated(client: httpx.AsyncClient):
+    missing_name = await client.post(
+        "/v1/api-clients",
+        headers=_admin_headers(),
+        json={"status": "active"},
+    )
+    assert missing_name.status_code == 422
+
+    invalid_status = await client.post(
+        "/v1/api-clients",
+        headers=_admin_headers(),
+        json={"name": "integration-client", "status": "archived"},
+    )
+    assert invalid_status.status_code == 400
+
+    client_res = await client.post(
+        "/v1/api-clients",
+        headers=_admin_headers(),
+        json={"name": "integration-client"},
+    )
+    assert client_res.status_code == 201, client_res.text
+    client_id = client_res.json()["id"]
+
+    invalid_scope = await client.post(
+        f"/v1/api-clients/{client_id}/keys",
+        headers=_admin_headers(),
+        json={"name": "integration-key", "scopes": ["unknown:scope"]},
+    )
+    assert invalid_scope.status_code == 400
+
+
 async def test_public_chat_rejects_missing_or_unauthorized_key(client: httpx.AsyncClient):
     no_token = await client.post(
         "/v1/chat/completions",

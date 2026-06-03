@@ -58,18 +58,19 @@ PandaMind 是一个本地优先的 AI 模型服务平台，当前核心目标是
 
 - `POST /v1/auth/login` 登录接口
 - 登录成功返回 JWT token
-- `AUTH_DISABLED=true` 时任意用户名和密码可登录，返回匿名 token
+- 默认 `AUTH_DISABLED=false`，业务接口需要有效 Bearer Token
+- `AUTH_DISABLED=true` 仅用于本地开发，任意用户名和密码可登录，返回匿名 token
 - 前端登录页会保存 token 到 `localStorage`
 - 前端 API 请求会附带 `Authorization: Bearer <token>`
 
 部分实现：
 
-- 后端已经有 `require_auth` 依赖，支持 `AUTH_DISABLED=false` 时校验 Bearer Token。
-- 当前业务路由尚未统一接入 `Depends(require_auth)`，因此模型、对话、提示词、处理接口实际还没有强制鉴权。
+- 后端已经有 `require_auth` 和 `require_public_identity` 依赖，支持 JWT 与外部 API Key 两类身份。
+- Chat 与 Process 同时兼容管理员 JWT 和外部 API Key。
 
 建议：
 
-- 若系统要进入真实使用环境，应优先在业务路由上统一接入鉴权依赖。
+- 真实使用环境必须保持 `AUTH_DISABLED=false`，并设置非默认 `AUTH_USERNAME`、`AUTH_PASSWORD` 和独立 `JWT_SECRET`。
 - 登录能力保留为单用户模式，符合当前 MVP 的 KISS/YAGNI 边界。
 
 ### 2.3 模型配置管理
@@ -239,7 +240,7 @@ Provider 行为：
 
 当前限制：
 
-- 请求参数里虽然读取了 `stream`，但实现会先聚合完整响应再返回 JSON，暂不具备真正流式处理能力。
+- 暂不具备真正流式处理能力，只支持同步返回完整结果。
 - 当前没有专门的 Pydantic 请求/响应 schema，入参仍是 `dict[str, Any]`。
 
 ### 2.8 数据持久化能力
@@ -304,35 +305,34 @@ Provider 行为：
 
 ## 4. 当前主要风险与完善建议
 
-### P0：业务 API 鉴权未真正生效
+### P0：生产环境必须禁用无认证模式
 
 现状：
 
-- 文档和前端按 Bearer Token 使用。
-- 后端业务路由没有统一接入 `require_auth`。
+- 代码默认 `AUTH_DISABLED=false`，`.env.example` 也默认启用认证。
+- 本地仍可显式设置 `AUTH_DISABLED=true` 跳过认证。
 
 建议：
 
-- 在模型、对话、提示词、处理接口上统一添加鉴权依赖。
-- `AUTH_DISABLED=true` 时仍可本地跳过认证。
+- 生产部署检查 `AUTH_DISABLED=false`。
+- 设置非默认 `AUTH_USERNAME` / `AUTH_PASSWORD`。
+- 设置独立强随机 `JWT_SECRET`，不要依赖 `ENCRYPTION_KEY` 兜底。
 
-### P1：提示词编辑保存接口方法不一致
+### 已修复：提示词编辑保存接口方法不一致
 
 现状：
 
 - 后端更新提示词使用 `PUT /v1/prompts/{id}`。
-- 前端编辑保存调用 `POST /v1/prompts/{id}`。
+- 前端编辑保存已改为 `apiPut` 调用 `PUT /v1/prompts/{id}`。
+- 前端删除提示词已改为复用 `apiDelete`，会带上 Bearer Token。
 
 建议：
 
-- 前端改为 `apiPut` 并调用 `PUT`。
-- 或后端额外兼容 `POST /v1/prompts/{id}`，但从 KISS/REST 一致性看更推荐改前端。
+- 后续补充前端交互测试，覆盖 Prompt 保存和删除。
 
-### P1：`/v1/process` 文档和实现对 stream 的语义不一致
+### ~~P1：`/v1/process` 文档和实现对 stream 的语义不一致~~
 
-现状：
-
-- 实现不支持真正流式处理。
+已修复：stream 参数已从代码和文档中移除。
 
 建议：
 

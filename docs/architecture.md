@@ -499,7 +499,10 @@ CREATE INDEX idx_conversations_created ON conversations (created_at DESC);
 DATABASE_URL=postgresql://user:pass@localhost:5432/pandamind
 ENCRYPTION_KEY=<base64-encoded-32-byte-key>   # API Key 加密主密钥（base64 编码 32 字节）
 AUTH_DISABLED=true              # 本地开发关闭认证
-PORT=3000
+AUTH_USERNAME=admin             # 生产环境必须替换
+AUTH_PASSWORD=<strong-password> # 生产环境必须替换
+JWT_SECRET=<strong-random-secret>
+PORT=8000
 LOG_LEVEL=info
 ```
 

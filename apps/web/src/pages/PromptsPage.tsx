@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { apiGet, apiPost } from '../lib/api';
+import { apiDelete, apiGet, apiPost, apiPut } from '../lib/api';
 
 interface Prompt {
   id: string;
@@ -139,7 +139,7 @@ export function PromptsPage() {
     if (!editing) return;
     try {
       const variables = detectVariables(editorDraft.system, editorDraft.user_template);
-      await apiPost(`/v1/prompts/${editing.id}`, {
+      await apiPut(`/v1/prompts/${editing.id}`, {
         name: editorDraft.name,
         description: editorDraft.description || null,
         system: editorDraft.system || null,
@@ -198,8 +198,7 @@ export function PromptsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this prompt template?')) return;
     try {
-      const res = await fetch(`/v1/prompts/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete failed');
+      await apiDelete(`/v1/prompts/${id}`);
       if (editing?.id === id) setEditing(null);
       await fetchPrompts();
     } catch (e) {

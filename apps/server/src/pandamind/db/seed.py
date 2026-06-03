@@ -27,6 +27,28 @@ SEED_MODELS = [
         "aliases": ["local", "fast"],
         "enabled": True,
     },
+    {
+        "id": "ollama-qwen3-8b",
+        "name": "Local Qwen3 8B (Ollama)",
+        "provider": "ollama",
+        "model": "qwen3:8b",
+        "base_url": "http://127.0.0.1:11434",
+        "api_key_enc": None,
+        "default_params": {"temperature": 0.7, "max_tokens": 2048},
+        "aliases": ["qwen", "daily"],
+        "enabled": True,
+    },
+    {
+        "id": "ollama-deepseek-r1-14b",
+        "name": "Local DeepSeek R1 14B (Ollama)",
+        "provider": "ollama",
+        "model": "deepseek-r1:14b",
+        "base_url": "http://127.0.0.1:11434",
+        "api_key_enc": None,
+        "default_params": {"temperature": 0.6, "max_tokens": 4096},
+        "aliases": ["reasoning", "algorithm"],
+        "enabled": True,
+    },
 ]
 
 SEED_PROMPTS = [

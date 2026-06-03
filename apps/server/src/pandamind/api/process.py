@@ -42,7 +42,6 @@ async def process_text(
         - prompt_id: str (required) — prompt template id
         - model: str (optional) — model id to use (defaults to first available)
         - variables: dict (optional) — extra template variables beyond "text"
-        - stream: bool (default false) — whether to stream response
 
     Returns:
         - result: str — the model's response
@@ -54,7 +53,6 @@ async def process_text(
     prompt_id = data.get("prompt_id", "")
     model_id = data.get("model")
     extra_vars = data.get("variables", {})
-    stream = data.get("stream", False)
     is_external = isinstance(identity, ApiIdentity)
 
     if not text:
@@ -138,15 +136,6 @@ async def process_text(
             provider_latency_ms=latency_ms,
             total_latency_ms=latency_ms,
         )
-
-    if stream:
-        # Return SSE-compatible structure
-        return {
-            "result": full_content,
-            "model": model_id,
-            "prompt_id": prompt_id,
-            "latency_ms": latency_ms,
-        }
 
     return {
         "result": full_content,
