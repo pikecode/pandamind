@@ -18,7 +18,7 @@ export class ApiError extends Error {
   }
 }
 
-const BASE = '';
+const BASE = '/api';
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem('pm_token');

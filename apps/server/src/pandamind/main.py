@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from pandamind.api import api_router
@@ -107,5 +108,19 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+# --- Root redirect ---
+@app.get("/")
+async def root_redirect():
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/app/")
+
+
+# --- Static files (React build) ---
+from pathlib import Path
+
+_STATIC_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent / "web" / "dist"
+if _STATIC_DIR.is_dir():
+    app.mount("/app", StaticFiles(directory=str(_STATIC_DIR), html=True), name="static")
+
 # --- API Routers ---
-app.include_router(api_router)
+app.include_router(api_router, prefix="/api")

@@ -103,7 +103,7 @@ export function ChatPage() {
     }
 
     try {
-      const response = await fetch('/v1/chat/completions', {
+      const response = await fetch('/api/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
         body: JSON.stringify({
